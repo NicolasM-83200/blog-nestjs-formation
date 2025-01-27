@@ -20,21 +20,21 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto): {
+  async create(@Body() createUserDto: CreateUserDto): Promise<{
     message: string;
     user: User;
-  } {
+  }> {
     return {
       message: 'User created successfully',
-      user: this.usersService.create(createUserDto),
+      user: await this.usersService.createUser(createUserDto),
     };
   }
 
   @Get()
-  getAll(@Query() query: { [key: string]: string }): {
+  async getAll(@Query() query: { [key: string]: string }): Promise<{
     message: string;
     users: User[];
-  } {
+  }> {
     return {
       message:
         Object.keys(query).length === 0
@@ -42,7 +42,7 @@ export class UsersController {
           : `Users filtered by ${Object.entries(query)
               .map(([key, value]) => `${key}: ${value}`)
               .join(', ')}`,
-      users: this.usersService.getAll(query),
+      users: await this.usersService.getAllUsers(query),
     };
   }
 

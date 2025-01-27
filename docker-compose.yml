@@ -1,0 +1,26 @@
+services:
+  db:
+    image: mysql:9.2.0
+    container_name: mysql-blog
+    environment:
+      MYSQL_ROOT_PASSWORD: Mysqlblogmdp6426
+      MYSQL_DATABASE: blog
+      MYSQL_USER: blog
+      MYSQL_PASSWORD: blog
+      MYSQL_GRANT_SUPER_PRIVILEGE: 1
+    ports:
+      - '3307:3306'
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql-config:/etc/mysql/conf.d
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      - PMA_ARBITRARY=1
+
+volumes:
+  db_data:
+
