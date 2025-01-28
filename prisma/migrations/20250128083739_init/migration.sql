@@ -17,8 +17,8 @@ CREATE TABLE `User` (
 CREATE TABLE `Post` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `title` VARCHAR(191) NOT NULL,
-    `description` VARCHAR(191) NULL,
-    `published` BOOLEAN NULL DEFAULT true,
+    `description` VARCHAR(191) NOT NULL,
+    `isPublished` BOOLEAN NOT NULL DEFAULT false,
     `userId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,

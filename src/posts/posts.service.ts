@@ -1,84 +1,122 @@
 import { Injectable } from '@nestjs/common';
-import { Post } from 'src/post.class';
-import { User } from 'src/user.class';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { PrismaService } from 'prisma/prisma.service';
+import { Post as PostClass } from '@prisma/client';
 
 @Injectable()
 export class PostsService {
-  posts: Post[] = [];
+  constructor(private prismaService: PrismaService) {}
 
-  create(createPostDto: CreatePostDto, user: User): Post {
-    const post = new Post(createPostDto.title, createPostDto.description, user);
-    this.posts.push(post);
-    return post;
-  }
-
-  getAll(query?: { [key: string]: string }): Post[] {
-    if (Object.keys(query).length === 0) return this.posts;
-    return this.posts.filter((post) => {
-      return Object.entries(query).every(([key, value]) => {
-        const postValue = post[key as keyof Post];
-        return String(postValue)
-          .toLowerCase()
-          .includes(String(value).toLowerCase());
-      });
+  async create(createPostDto: CreatePostDto): Promise<PostClass> {
+    const { userId, ...rest } = createPostDto;
+    return this.prismaService.post.create({
+      data: {
+        ...rest,
+        user: {
+          connect: {
+            id: userId,
+          },
+        },
+      },
     });
   }
 
-  getById(id: number): Post {
-    return this.posts.find((post) => post.id === id);
-  }
-
-  getByUser(userId: number): Post[] {
-    return this.posts.filter((post) => post.user.id === userId);
-  }
-
-  update(id: number, updatePostDto: UpdatePostDto): Post {
-    const post = this.getById(id);
-    return Object.assign(post, { ...updatePostDto, updatedAt: new Date() });
-  }
-
-  delete(id: number): Post {
-    const index = this.posts.indexOf(this.getById(id));
-    const [deletedItem] = this.posts.splice(index, 1);
-    return deletedItem;
-  }
-
-  getStats(userId: number): {
-    stats: {
-      totalPosts: number;
-      lastPostDate: Date;
-    };
-  } {
-    const posts = this.getByUser(userId);
-    return {
-      stats: {
-        totalPosts: posts.length,
-        lastPostDate: posts[posts.length - 1].createdAt,
+  async findAll(query?: { [key: string]: string }): Promise<PostClass[]> {
+    if (!query || Object.keys(query).length === 0) {
+      return this.prismaService.post.findMany({
+        include: { user: true },
+      });
+    }
+    return this.prismaService.post.findMany({
+      where: {
+        OR: Object.entries(query).map(([key, value]) => ({
+          [key]: { contains: value },
+        })),
       },
-    };
+      include: { user: true },
+    });
   }
 
-  getLatest(count: number): Post[] {
-    return this.posts.slice(-count);
+  async findOne(id: number): Promise<PostClass> {
+    return this.prismaService.post.findUnique({
+      where: { id },
+      include: { user: true },
+    });
   }
 
-  getUnpublishedByUser(userId: number): Post[] {
-    return this.posts.filter(
-      (post) => post.user.id === userId && !post.isPublished,
-    );
+  async findByUser(userId: number): Promise<PostClass[]> {
+    const posts = await this.prismaService.post.findMany({
+      where: { userId },
+      include: { user: true },
+    });
+    return posts.map((post) => post);
   }
 
-  publish(id: number): Post {
-    const post = this.getById(id);
-    post.isPublished = !post.isPublished;
+  async update(id: number, updatePostDto: UpdatePostDto): Promise<PostClass> {
+    const post = await this.prismaService.post.update({
+      where: { id },
+      data: { ...updatePostDto, updatedAt: new Date() },
+      include: { user: true },
+    });
     return post;
   }
 
-  getByDate(date: string): Post[] {
-    return this.posts.filter(
-      (post) => post.createdAt.toISOString().split('T')[0] === date,
-    );
+  async delete(id: number): Promise<PostClass> {
+    const post = await this.prismaService.post.delete({
+      where: { id },
+      include: { user: true },
+    });
+    return post;
+  }
+
+  async findStats(userId: number): Promise<{
+    totalPosts: number;
+    lastPostDate: Date;
+  }> {
+    const posts = await this.findByUser(userId);
+    return {
+      totalPosts: posts.length,
+      lastPostDate: posts[posts.length - 1].createdAt,
+    };
+  }
+
+  async findLatest(count: number): Promise<PostClass[]> {
+    return this.prismaService.post.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: count,
+      include: { user: true },
+    });
+  }
+
+  async findUnpublishedByUser(userId: number): Promise<PostClass[]> {
+    return this.prismaService.post.findMany({
+      where: {
+        userId,
+        isPublished: false,
+      },
+      include: { user: true },
+    });
+  }
+
+  async publish(id: number): Promise<PostClass> {
+    const post = await this.findOne(id);
+    const updatedPost = await this.prismaService.post.update({
+      where: { id },
+      data: { isPublished: !post.isPublished },
+      include: { user: true },
+    });
+    return { ...updatedPost, isPublished: updatedPost.isPublished };
+  }
+
+  async findByDate(date: string): Promise<PostClass[]> {
+    return this.prismaService.post.findMany({
+      where: {
+        createdAt: {
+          equals: new Date(date),
+        },
+      },
+      include: { user: true },
+    });
   }
 }

@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -10,10 +11,10 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { User } from 'src/user.class';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Prisma, User } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
@@ -24,14 +25,26 @@ export class UsersController {
     message: string;
     user: User;
   }> {
-    return {
-      message: 'User created successfully',
-      user: await this.usersService.createUser(createUserDto),
-    };
+    try {
+      return {
+        message: 'User created successfully',
+        user: await this.usersService.create(createUserDto),
+      };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // The .code property can be accessed in a type-safe manner
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            'There is a unique constraint violation, a new user cannot be created with this email',
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   @Get()
-  async getAll(@Query() query: { [key: string]: string }): Promise<{
+  async findAll(@Query() query: { [key: string]: string }): Promise<{
     message: string;
     users: User[];
   }> {
@@ -42,49 +55,52 @@ export class UsersController {
           : `Users filtered by ${Object.entries(query)
               .map(([key, value]) => `${key}: ${value}`)
               .join(', ')}`,
-      users: await this.usersService.getAllUsers(query),
+      users: await this.usersService.findAll(query),
     };
   }
 
   @Get('/:id')
-  getById(@Param('id', ParseIntPipe) id: number): {
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     user: User;
-  } {
-    if (!this.usersService.getById(id)) {
+  }> {
+    const user = await this.usersService.findOne(id);
+    if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: `User with id: ${id} fetched`,
-      user: this.usersService.getById(+id),
+      user,
     };
   }
 
   @Put('/:id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
-  ): { message: string; user: User } {
-    if (!this.usersService.getById(id)) {
+  ): Promise<{ message: string; user: User }> {
+    const user = await this.usersService.findOne(id);
+    if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: `User with id: ${id} updated`,
-      user: this.usersService.update(id, updateUserDto),
+      user: await this.usersService.update(id, updateUserDto),
     };
   }
 
   @Delete('/:id')
-  delete(@Param('id', ParseIntPipe) id: number): {
+  async delete(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     user: User;
-  } {
-    if (!this.usersService.getById(id)) {
+  }> {
+    const user = await this.usersService.findOne(id);
+    if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: `User with id: ${id} deleted`,
-      user: this.usersService.delete(id),
+      user: await this.usersService.delete(id),
     };
   }
 }

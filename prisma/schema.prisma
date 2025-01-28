@@ -28,8 +28,8 @@ model User {
 model Post {
   id          Int      @id @default(autoincrement())
   title       String
-  description String?
-  published   Boolean? @default(true)
+  description String   @db.Text
+  isPublished Boolean  @default(false)
   user        User?    @relation(fields: [userId], references: [id])
   userId      Int?
   createdAt   DateTime @default(now())

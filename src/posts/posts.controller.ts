@@ -12,10 +12,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { Post as PostClass } from 'src/post.class';
 import { UsersService } from 'src/users/users.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { Post as PostClass } from '@prisma/client';
 
 @Controller('posts')
 export class PostsController {
@@ -25,25 +25,25 @@ export class PostsController {
   ) {}
 
   @Post()
-  create(@Body() createPostDto: CreatePostDto): {
+  async create(@Body() createPostDto: CreatePostDto): Promise<{
     message: string;
     post: PostClass;
-  } {
-    const user = this.usersService.getById(createPostDto.userId);
+  }> {
+    const user = await this.usersService.findOne(createPostDto.userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: 'Post created successfully',
-      post: this.postsService.create(createPostDto, user),
+      post: await this.postsService.create(createPostDto),
     };
   }
 
   @Get()
-  getAll(@Query() query: { [key: string]: string }): {
+  async findAll(@Query() query: { [key: string]: string }): Promise<{
     message: string;
     posts: PostClass[];
-  } {
+  }> {
     return {
       message:
         Object.keys(query).length === 0
@@ -51,127 +51,136 @@ export class PostsController {
           : `Posts filtered by ${Object.entries(query)
               .map(([key, value]) => `${key}: ${value}`)
               .join(', ')}`,
-      posts: this.postsService.getAll(query),
+      posts: await this.postsService.findAll(query),
     };
   }
 
   @Get('/latest')
-  getLatest(@Query('count', ParseIntPipe) count: number): {
+  async findLatest(@Query('count', ParseIntPipe) count: number): Promise<{
     message: string;
     posts: PostClass[];
-  } {
+  }> {
     return {
       message: 'Latest posts fetched successfully',
-      posts: this.postsService.getLatest(count),
+      posts: await this.postsService.findLatest(count),
     };
   }
 
   @Get('/unpublished/byUser/:userId')
-  getUnpublishedPostsByUser(@Param('userId', ParseIntPipe) userId: number): {
+  async findUnpublishedPostsByUser(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<{
     message: string;
     posts: PostClass[];
-  } {
+  }> {
     return {
       message: 'Unpublished posts fetched successfully',
-      posts: this.postsService.getUnpublishedByUser(userId),
+      posts: await this.postsService.findUnpublishedByUser(userId),
     };
   }
 
   @Get('/byDate/:date')
-  getByDate(@Param('date') date: string): {
+  async findByDate(@Param('date') date: string): Promise<{
     message: string;
     posts: PostClass[];
-  } {
+  }> {
+    const posts = await this.postsService.findByDate(date);
     return {
-      message: `${this.postsService.getByDate(date).length === 0 ? 'No posts found for date: ' + date : 'Posts fetched by date of ' + date + ' successfully'}`,
-      posts: this.postsService.getByDate(date),
+      message: `${posts.length === 0 ? 'No posts found for date: ' + date : 'Posts fetched by date of ' + date + ' successfully'}`,
+      posts,
     };
   }
 
   @Get('/byUser/:userId/stats')
-  getStats(@Param('userId', ParseIntPipe) userId: number): {
+  async findStats(@Param('userId', ParseIntPipe) userId: number): Promise<{
     message: string;
     stats: {
       totalPosts: number;
       lastPostDate: Date;
     };
-  } {
-    if (!this.usersService.getById(userId)) {
+  }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: `Posts stats for user with id: ${userId}`,
-      stats: this.postsService.getStats(userId).stats,
+      stats: await this.postsService.findStats(userId),
     };
   }
 
   @Get('/byUser/:userId/posts')
-  getByUser(@Param('userId', ParseIntPipe) userId: number): {
+  async findByUser(@Param('userId', ParseIntPipe) userId: number): Promise<{
     message: string;
     posts: PostClass[];
-  } {
-    if (!this.usersService.getById(userId)) {
+  }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
       throw new NotFoundException('User not found');
     }
     return {
       message: `Posts fetched by user with id: ${userId}`,
-      posts: this.postsService.getByUser(userId),
+      posts: await this.postsService.findByUser(userId),
     };
   }
 
   @Get('/:id')
-  getById(@Param('id', ParseIntPipe) id: number): {
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     post: PostClass;
-  } {
-    if (!this.postsService.getById(id)) {
+  }> {
+    const post = await this.postsService.findOne(id);
+    if (!post) {
       throw new NotFoundException('Post not found');
     }
     return {
       message: 'Post fetched successfully',
-      post: this.postsService.getById(id),
+      post,
     };
   }
 
   @Put('/:id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updatePostDto: UpdatePostDto,
-  ): { message: string; post: PostClass } {
-    if (!this.postsService.getById(id)) {
+  ): Promise<{ message: string; post: PostClass }> {
+    const post = await this.postsService.findOne(id);
+    if (!post) {
       throw new NotFoundException('Post not found');
     }
     return {
       message: 'Post updated successfully',
-      post: this.postsService.update(id, updatePostDto),
+      post: await this.postsService.update(id, updatePostDto),
     };
   }
 
   @Patch('/:id/publish')
-  publish(@Param('id', ParseIntPipe) id: number): {
+  async publish(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     post: PostClass;
-  } {
-    if (!this.postsService.getById(id)) {
+  }> {
+    const post = await this.postsService.findOne(id);
+    if (!post) {
       throw new NotFoundException('Post not found');
     }
     return {
-      message: `Post ${this.postsService.getById(id).isPublished ? 'unpublished' : 'published'}`,
-      post: this.postsService.publish(id),
+      message: `Post ${post.isPublished ? 'unpublished' : 'published'}`,
+      post: await this.postsService.publish(id),
     };
   }
 
   @Delete('/:id')
-  delete(@Param('id', ParseIntPipe) id: number): {
+  async delete(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     post: PostClass;
-  } {
-    if (!this.postsService.getById(id)) {
+  }> {
+    const post = await this.postsService.findOne(id);
+    if (!post) {
       throw new NotFoundException('Post not found');
     }
     return {
       message: 'Post deleted successfully',
-      post: this.postsService.delete(id),
+      post: await this.postsService.delete(id),
     };
   }
 }
