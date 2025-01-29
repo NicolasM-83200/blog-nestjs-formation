@@ -16,6 +16,7 @@ import { UsersService } from 'src/users/users.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Post as PostClass } from '@prisma/client';
+import { GetPostParamsDto } from './dto/get-post-params.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -40,7 +41,7 @@ export class PostsController {
   }
 
   @Get()
-  async findAll(@Query() query: { [key: string]: string }): Promise<{
+  async findAll(@Query() query: GetPostParamsDto): Promise<{
     message: string;
     posts: PostClass[];
   }> {

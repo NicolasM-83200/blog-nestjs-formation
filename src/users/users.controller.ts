@@ -15,6 +15,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Prisma, User } from '@prisma/client';
+import { GetUserParamsDto } from './dto/get-user-params.dto';
 
 @Controller('users')
 export class UsersController {
@@ -44,7 +45,7 @@ export class UsersController {
   }
 
   @Get()
-  async findAll(@Query() query: { [key: string]: string }): Promise<{
+  async findAll(@Query() query: GetUserParamsDto): Promise<{
     message: string;
     users: User[];
   }> {

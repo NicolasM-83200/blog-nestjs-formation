@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PrismaService } from 'prisma/prisma.service';
-import { Post as PostClass } from '@prisma/client';
+import { Post as PostClass, Prisma } from '@prisma/client';
+import { GetPostParamsDto } from './dto/get-post-params.dto';
 
 @Injectable()
 export class PostsService {
@@ -22,52 +23,73 @@ export class PostsService {
     });
   }
 
-  async findAll(query?: { [key: string]: string }): Promise<PostClass[]> {
-    if (!query || Object.keys(query).length === 0) {
-      return this.prismaService.post.findMany({
-        include: { user: true },
-      });
+  async findAll(query?: GetPostParamsDto): Promise<PostClass[]> {
+    const where: Prisma.PostWhereInput = {};
+
+    if (query.id) {
+      where.id = {
+        equals: Number(query.id),
+      };
     }
+
+    if (query.title) {
+      where.title = {
+        contains: query.title,
+      };
+    }
+
+    if (query.description) {
+      where.description = {
+        contains: query.description,
+      };
+    }
+
+    if (query.userId) {
+      where.userId = {
+        equals: Number(query.userId),
+      };
+    }
+
+    if (query.isPublished) {
+      const boolValue = String(query.isPublished) === 'true';
+      where.isPublished = {
+        equals: boolValue,
+      };
+    }
+
     return this.prismaService.post.findMany({
-      where: {
-        OR: Object.entries(query).map(([key, value]) => ({
-          [key]: { contains: value },
-        })),
-      },
-      include: { user: true },
+      where,
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
   }
 
   async findOne(id: number): Promise<PostClass> {
     return this.prismaService.post.findUnique({
       where: { id },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
   }
 
   async findByUser(userId: number): Promise<PostClass[]> {
-    const posts = await this.prismaService.post.findMany({
+    return this.prismaService.post.findMany({
       where: { userId },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
-    return posts.map((post) => post);
   }
 
   async update(id: number, updatePostDto: UpdatePostDto): Promise<PostClass> {
-    const post = await this.prismaService.post.update({
+    return this.prismaService.post.update({
       where: { id },
       data: { ...updatePostDto, updatedAt: new Date() },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
-    return post;
   }
 
   async delete(id: number): Promise<PostClass> {
-    const post = await this.prismaService.post.delete({
+    return this.prismaService.post.delete({
       where: { id },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
-    return post;
   }
 
   async findStats(userId: number): Promise<{
@@ -85,7 +107,7 @@ export class PostsService {
     return this.prismaService.post.findMany({
       orderBy: { createdAt: 'desc' },
       take: count,
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
   }
 
@@ -95,7 +117,7 @@ export class PostsService {
         userId,
         isPublished: false,
       },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
   }
 
@@ -104,7 +126,7 @@ export class PostsService {
     const updatedPost = await this.prismaService.post.update({
       where: { id },
       data: { isPublished: !post.isPublished },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
     return { ...updatedPost, isPublished: updatedPost.isPublished };
   }
@@ -113,10 +135,11 @@ export class PostsService {
     return this.prismaService.post.findMany({
       where: {
         createdAt: {
-          equals: new Date(date),
+          gte: new Date(date),
+          lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
         },
       },
-      include: { user: true },
+      include: { user: { select: { firstname: true, lastname: true } } },
     });
   }
 }
