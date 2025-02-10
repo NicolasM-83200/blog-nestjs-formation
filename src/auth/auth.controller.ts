@@ -19,7 +19,7 @@ import { Public } from 'src/decorators/public.decorator';
 import { IRequestWithRefresh } from './type';
 import { ResfreshGuard } from './guards/refresh.guard';
 
-@Public()
+@Public() // Décorateur pour permettre l'accès à tous les utilisateurs
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -48,10 +48,10 @@ export class AuthController {
     return { user: new_user };
   }
 
-  @HttpCode(HttpStatus.OK)
-  @Post('login')
+  @HttpCode(HttpStatus.OK) // Décorateur pour renvoyer un code 200
+  @Post('login') // Route pour la connexion
   async login(
-    @Body() loginDto: LoginDto,
+    @Body() loginDto: LoginDto, // Décorateur pour récupérer les données du corps de la requête
   ): Promise<{ access_token: string; refresh_token: string }> {
     // vérification si email existe get user by email
     const user = await this.usersService.findOneByEmail(loginDto.email);
@@ -96,7 +96,7 @@ export class AuthController {
   }
 
   @Get('refresh-token')
-  @UseGuards(ResfreshGuard)
+  @UseGuards(ResfreshGuard) // Décorateur pour vérifier le refreshToken
   async refreshToken(@Req() req: IRequestWithRefresh) {
     // verifier le refreshToken => date expiration // malformed // existe // et bonne signature
 

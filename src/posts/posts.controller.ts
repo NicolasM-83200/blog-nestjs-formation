@@ -44,7 +44,7 @@ export class PostsController {
     message: string;
     post: PostClass;
   }> {
-    console.log('🚀 ~ PostsController ~ req:', req.user.sub);
+    // Récupération de l'utilisateur par l'id récupéré dans l'objet req
     const user = await this.usersService.findOneById(req.user.sub);
     if (!user) {
       throw new CustomHttpException(
@@ -69,10 +69,13 @@ export class PostsController {
   }> {
     return {
       message:
+        // Si aucun filtre n'est appliqué, on affiche tous les posts
         Object.keys(query).length === 0
           ? 'All posts fetched successfully'
           : `Posts filtered by ${Object.entries(query)
+              // On transforme les entrées en chaine de caractères
               .map(([key, value]) => `${key}: ${value}`)
+              // On joint les entrées avec une virgule
               .join(', ')}`,
       posts: await this.postsService.findAll(query),
     };
@@ -185,6 +188,7 @@ export class PostsController {
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    // Si l'utilisateur n'est pas admin et que l'utilisateur n'est pas le créateur du post, on renvoie une erreur
     if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
       throw new CustomHttpException(
         'You are not allowed to update this post',
@@ -210,6 +214,7 @@ export class PostsController {
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    // Si l'utilisateur n'est pas admin et que l'utilisateur n'est pas le créateur du post, on renvoie une erreur
     if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
       throw new CustomHttpException(
         'You are not allowed to publish this post',
@@ -253,13 +258,8 @@ export class PostsController {
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    // Si l'utilisateur n'est pas admin et que l'utilisateur n'est pas le créateur du post, on renvoie une erreur
     if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
-      console.log('🚀 ~ PostsController ~ delete ~ req.user.role:', req.user);
-      console.log(
-        '🚀 ~ PostsController ~ delete ~ post.userId:',
-        post.userId,
-        req.user.sub,
-      );
       throw new CustomHttpException(
         'You are not allowed to delete this post',
         HttpStatus.FORBIDDEN,

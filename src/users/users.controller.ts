@@ -23,7 +23,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles(Role.admin)
+  @Roles(Role.admin) // Décorateur pour restreindre l'accès à l'admin
   async create(@Body() createUserDto: CreateUserDto): Promise<{
     message: string;
     user: User;
@@ -34,6 +34,7 @@ export class UsersController {
         user: await this.usersService.create(createUserDto),
       };
     } catch (error) {
+      // Gestion des erreurs de la base de données
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         // The .code property can be accessed in a type-safe manner
         if (error.code === 'P2002') {
@@ -104,7 +105,7 @@ export class UsersController {
   }
 
   @Delete('/:id')
-  @Roles(Role.admin)
+  @Roles(Role.admin) // Décorateur pour restreindre l'accès à l'admin
   async delete(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     user: User;
