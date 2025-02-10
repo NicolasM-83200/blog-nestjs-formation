@@ -17,7 +17,6 @@ export class UsersService {
   }
 
   async findAll(query?: GetUserParamsDto): Promise<User[]> {
-    console.log(query);
     const { whereBuilder } = await applyFilters<Prisma.UserWhereInput>({
       appliedFiltersInput: query,
       availableFilters: {
