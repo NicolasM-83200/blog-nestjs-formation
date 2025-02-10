@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -10,13 +11,23 @@ import {
   Post,
   Put,
   Query,
+  Req,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { UsersService } from 'src/users/users.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
-import { Post as PostClass } from '@prisma/client';
+import { Post as PostClass, Role } from '@prisma/client';
 import { GetPostParamsDto } from './dto/get-post-params.dto';
+import { CustomHttpException } from 'src/exceptions/customhttp.exception';
+import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user: {
+    sub: number;
+    role: Role;
+  };
+}
 
 @Controller('posts')
 export class PostsController {
@@ -26,17 +37,28 @@ export class PostsController {
   ) {}
 
   @Post()
-  async create(@Body() createPostDto: CreatePostDto): Promise<{
+  async create(
+    @Body() createPostDto: CreatePostDto,
+    @Req() req: RequestWithUser,
+  ): Promise<{
     message: string;
     post: PostClass;
   }> {
-    const user = await this.usersService.findOne(createPostDto.userId);
+    console.log('🚀 ~ PostsController ~ req:', req.user.sub);
+    const user = await this.usersService.findOneById(req.user.sub);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new CustomHttpException(
+        "Pas de users trouvé avec l'id: " + req.user.sub,
+        HttpStatus.NOT_FOUND,
+        'PC-c-1',
+      );
     }
     return {
       message: 'Post created successfully',
-      post: await this.postsService.create(createPostDto),
+      post: await this.postsService.create({
+        ...createPostDto,
+        user_id: user.id,
+      }),
     };
   }
 
@@ -53,6 +75,19 @@ export class PostsController {
               .map(([key, value]) => `${key}: ${value}`)
               .join(', ')}`,
       posts: await this.postsService.findAll(query),
+    };
+  }
+
+  @Get('/mostPopular')
+  async findMostPopular(
+    @Query('viewCount', ParseIntPipe) viewCount: number,
+  ): Promise<{
+    message: string;
+    posts: PostClass[];
+  }> {
+    return {
+      message: 'Most popular posts fetched successfully',
+      posts: await this.postsService.findMostPopular(viewCount),
     };
   }
 
@@ -100,7 +135,7 @@ export class PostsController {
       lastPostDate: Date;
     };
   }> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -115,7 +150,7 @@ export class PostsController {
     message: string;
     posts: PostClass[];
   }> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -144,10 +179,18 @@ export class PostsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updatePostDto: UpdatePostDto,
+    @Req() req: RequestWithUser,
   ): Promise<{ message: string; post: PostClass }> {
     const post = await this.postsService.findOne(id);
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+    if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
+      throw new CustomHttpException(
+        'You are not allowed to update this post',
+        HttpStatus.FORBIDDEN,
+        'PC-u-1',
+      );
     }
     return {
       message: 'Post updated successfully',
@@ -156,7 +199,35 @@ export class PostsController {
   }
 
   @Patch('/:id/publish')
-  async publish(@Param('id', ParseIntPipe) id: number): Promise<{
+  async publish(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ): Promise<{
+    message: string;
+    post: PostClass;
+  }> {
+    const post = await this.postsService.findOne(id);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
+      throw new CustomHttpException(
+        'You are not allowed to publish this post',
+        HttpStatus.FORBIDDEN,
+        'PC-p-1',
+      );
+    }
+    return {
+      message: `Post ${post.isPublished ? 'unpublished' : 'published'}`,
+      post: await this.postsService.publish(id),
+    };
+  }
+
+  @Post('/:id/like')
+  async like(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ): Promise<{
     message: string;
     post: PostClass;
   }> {
@@ -165,19 +236,35 @@ export class PostsController {
       throw new NotFoundException('Post not found');
     }
     return {
-      message: `Post ${post.isPublished ? 'unpublished' : 'published'}`,
-      post: await this.postsService.publish(id),
+      message: 'Post liked successfully',
+      post: await this.postsService.toggleLike(id, req.user.sub),
     };
   }
 
   @Delete('/:id')
-  async delete(@Param('id', ParseIntPipe) id: number): Promise<{
+  async delete(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ): Promise<{
     message: string;
     post: PostClass;
   }> {
     const post = await this.postsService.findOne(id);
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+    if (req.user.role !== Role.admin && post.userId !== req.user.sub) {
+      console.log('🚀 ~ PostsController ~ delete ~ req.user.role:', req.user);
+      console.log(
+        '🚀 ~ PostsController ~ delete ~ post.userId:',
+        post.userId,
+        req.user.sub,
+      );
+      throw new CustomHttpException(
+        'You are not allowed to delete this post',
+        HttpStatus.FORBIDDEN,
+        'PC-d-1',
+      );
     }
     return {
       message: 'Post deleted successfully',

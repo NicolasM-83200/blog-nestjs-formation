@@ -17,6 +17,7 @@ export class UsersService {
   }
 
   async findAll(query?: GetUserParamsDto): Promise<User[]> {
+    console.log(query);
     const { whereBuilder } = await applyFilters<Prisma.UserWhereInput>({
       appliedFiltersInput: query,
       availableFilters: {
@@ -56,16 +57,6 @@ export class UsersService {
             },
           };
         },
-        isAdmin: async ({ filter }) => {
-          const boolValue = filter === 'true';
-          return {
-            where: {
-              isAdmin: {
-                equals: boolValue,
-              },
-            },
-          };
-        },
       },
     });
 
@@ -74,9 +65,15 @@ export class UsersService {
     });
   }
 
-  async findOne(id: number): Promise<User> {
+  async findOneById(id: number): Promise<User> {
     return this.prismaService.user.findUnique({
       where: { id },
+    });
+  }
+
+  async findOneByEmail(email: string): Promise<User> {
+    return this.prismaService.user.findUnique({
+      where: { email },
     });
   }
 
@@ -88,8 +85,38 @@ export class UsersService {
   }
 
   async delete(id: number): Promise<User> {
-    return this.prismaService.user.delete({
-      where: { id },
+    return this.prismaService.$transaction(async (tx) => {
+      // 1. Supprimer tous les likes des posts de l'utilisateur
+      await tx.like.deleteMany({
+        where: { post: { userId: id } },
+      });
+      // 2. Supprimer tous les likes de l'utilisateur
+      await tx.like.deleteMany({
+        where: { userId: id },
+      });
+      // 3. Supprimer tous les posts de l'utilisateur
+      await tx.post.deleteMany({
+        where: { userId: id },
+      });
+      // 4. Supprimer l'utilisateur
+      return tx.user.delete({
+        where: { id },
+      });
+    });
+  }
+
+  async findActiveInLastWeek(): Promise<Partial<User>[]> {
+    return this.prismaService.user.findMany({
+      where: {
+        createdAt: {
+          gte: new Date(new Date().setDate(new Date().getDate() - 7)),
+        },
+      },
+      select: {
+        firstname: true,
+        lastname: true,
+        email: true,
+      },
     });
   }
 }

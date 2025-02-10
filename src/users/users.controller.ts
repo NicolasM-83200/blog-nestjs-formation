@@ -12,16 +12,18 @@ import {
   Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Prisma, User } from '@prisma/client';
+import { Prisma, Role, User } from '@prisma/client';
 import { GetUserParamsDto } from './dto/get-user-params.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { Roles } from 'src/decorators/roles.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @Roles(Role.admin)
   async create(@Body() createUserDto: CreateUserDto): Promise<{
     message: string;
     user: User;
@@ -60,12 +62,23 @@ export class UsersController {
     };
   }
 
+  @Get('/active-in-last-week')
+  async findActiveInLastWeek(): Promise<{
+    message: string;
+    users: Partial<User>[];
+  }> {
+    return {
+      message: 'Users active in last week fetched successfully',
+      users: await this.usersService.findActiveInLastWeek(),
+    };
+  }
+
   @Get('/:id')
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     user: User;
   }> {
-    const user = await this.usersService.findOne(id);
+    const user = await this.usersService.findOneById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -80,7 +93,7 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<{ message: string; user: User }> {
-    const user = await this.usersService.findOne(id);
+    const user = await this.usersService.findOneById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -91,11 +104,12 @@ export class UsersController {
   }
 
   @Delete('/:id')
+  @Roles(Role.admin)
   async delete(@Param('id', ParseIntPipe) id: number): Promise<{
     message: string;
     user: User;
   }> {
-    const user = await this.usersService.findOne(id);
+    const user = await this.usersService.findOneById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }

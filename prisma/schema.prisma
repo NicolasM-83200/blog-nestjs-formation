@@ -13,16 +13,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  admin
+  user
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   firstname String
   lastname  String
   email     String   @unique
   password  String
-  isAdmin   Boolean  @default(false)
+  role      Role     @default(user)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   posts     Post[]
+  likes     Like[]
+  Token     Token[]
 }
 
 model Post {
@@ -30,8 +37,46 @@ model Post {
   title       String
   description String   @db.Text
   isPublished Boolean  @default(false)
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
   user        User?    @relation(fields: [userId], references: [id])
   userId      Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  likes       Like[]
 }
+
+model Like {
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@id([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Token {
+  token     String        @unique
+  type      TypeTokenEnum
+  expiredAt DateTime?
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@id([type, userId])
+}
+
+enum TypeTokenEnum {
+  REFRESH //jwt
+  FORGOT_PASSWORD // chaine string aleatoire
+  ACCOUNT_ACRIVATION // bis
+}
+
+// SELECT user_id, firstname from like
+// JOIN user ON user.id = like.user_id
+// where post_id = 1;
