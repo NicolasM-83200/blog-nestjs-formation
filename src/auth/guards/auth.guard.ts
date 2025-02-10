@@ -18,17 +18,22 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Récupération des informations publiques
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
+    // Si les informations sont publiques, on autorise l'accès à la ressource
     if (isPublic) {
       // 💡 See this condition
       return true;
     }
 
+    // Récupération de la requête
     const request = context.switchToHttp().getRequest();
+    // Récupération du token
     const token = this.extractTokenFromHeader(request);
+    // Si le token n'est pas présent, on renvoie une erreur
     if (!token) {
       throw new CustomHttpException(
         'No token provided!',
@@ -37,13 +42,15 @@ export class AuthGuard implements CanActivate {
       );
     }
     try {
+      // Vérification du token
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.SECRET_KEY || 'secret-key',
+        secret: process.env.JWT_SECRET,
       });
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
+      // 💡 On assigne le payload à l'objet request ici
+      // afin que nous puissions y accéder dans nos gestionnaires de routes
       request['user'] = payload;
     } catch (error) {
+      // Si le token n'est pas valide, on renvoie une erreur
       throw new CustomHttpException(
         error.message,
         HttpStatus.UNAUTHORIZED,
@@ -53,6 +60,7 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
+  // Extraction du token
   private extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
     return type === 'Bearer' ? token : undefined;

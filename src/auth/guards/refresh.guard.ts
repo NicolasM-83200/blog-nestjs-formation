@@ -13,8 +13,11 @@ export class ResfreshGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Récupération de la requête
     const request = context.switchToHttp().getRequest();
+    // Récupération du token
     const token = this.extractTokenFromHeader(request);
+    // Si le token n'est pas présent, on renvoie une erreur
     if (!token) {
       throw new CustomHttpException(
         'No token provided!!',
@@ -23,14 +26,18 @@ export class ResfreshGuard implements CanActivate {
       );
     }
     try {
+      // Vérification du token
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.SECRET_REFRESH_KEY || 'secret-refresh-key',
+        secret: process.env.JWT_REFRESH_SECRET,
       });
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
+      // 💡 On assigne le payload à l'objet request ici
+      // afin que nous puissions y accéder dans nos gestionnaires de routes
       request['user'] = payload;
+      // On assigne le token à l'objet request ici
+      // afin que nous puissions y accéder dans nos gestionnaires de routes
       request['refresh'] = token;
     } catch (error) {
+      // Si le token n'est pas valide, on renvoie une erreur
       throw new CustomHttpException(
         error.message,
         HttpStatus.UNAUTHORIZED,

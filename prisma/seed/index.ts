@@ -9,6 +9,11 @@ async function main() {
   await createLikesForPosts(posts, users);
 }
 
+/**
+ * Création d'utilisateurs
+ * @param count - Nombre d'utilisateurs à créer
+ * @returns Promise<User[]> - Utilisateurs créés
+ */
 const createUser = async (count: number): Promise<User[]> => {
   const users: User[] = [];
   while (count > 0) {
@@ -29,6 +34,12 @@ const createUser = async (count: number): Promise<User[]> => {
   return prisma.user.findMany();
 };
 
+/**
+ * Création de posts
+ * @param count - Nombre de posts à créer
+ * @param users - Utilisateurs existants
+ * @returns Promise<Post[]> - Posts créés
+ */
 const createPost = async (count: number, users: User[]): Promise<Post[]> => {
   const posts: Prisma.PostCreateManyInput[] = [];
   for (const user of users) {
@@ -53,6 +64,12 @@ const createPost = async (count: number, users: User[]): Promise<Post[]> => {
   return prisma.post.findMany();
 };
 
+/**
+ * Création de likes pour les posts
+ * @param posts - Posts existants
+ * @param users - Utilisateurs existants
+ * @returns Promise<Like[]> - Likes créés
+ */
 const createLikesForPosts = async (
   posts: Post[],
   users: User[],
@@ -66,7 +83,8 @@ const createLikesForPosts = async (
     const numberOfLikes = faker.number.int({ min: 1, max: 5 });
 
     while (userIdsWhoLiked.size < numberOfLikes) {
-      const randomUserId = users[Math.floor(Math.random() * users.length)].id;
+      // Tant que le nombre de likes n'est pas atteint
+      const randomUserId = users[Math.floor(Math.random() * users.length)].id; // Génère un utilisateur aléatoire
       userIdsWhoLiked.add(randomUserId); // Ajoute l'utilisateur à l'ensemble
     }
 
@@ -90,7 +108,16 @@ const createLikesForPosts = async (
   return prisma.like.findMany();
 };
 
+/**
+ * Fonction principale pour exécuter le seed
+ * @returns Promise<void> - Seed exécuté
+ */
 main()
+  /**
+   * Déconnexion de la base de données
+   * @returns Promise<void> - Déconnexion de la base de données
+   * pour éviter les erreurs de connexion
+   */
   .then(async () => {
     await prisma.$disconnect();
   })

@@ -14,7 +14,6 @@ export class PostsService {
   constructor(private prismaService: PrismaService) {}
 
   async create(createPostDto: CreatePostDtoWithUserId): Promise<PostClass> {
-    console.log('🚀 ~ PostsService ~ create ~ createPostDto:', createPostDto);
     const { user_id, ...postData } = createPostDto;
     return this.prismaService.post.create({
       data: {
@@ -90,10 +89,13 @@ export class PostsService {
   }
 
   async delete(id: number): Promise<PostClass> {
+    // Utilisation d'une transaction pour garantir la cohérence des données
     return this.prismaService.$transaction(async (tx) => {
+      // Suppression des likes liés au post
       await tx.like.deleteMany({
         where: { postId: id },
       });
+      // Suppression du post
       return tx.post.delete({
         where: { id },
         include: { user: { select: { firstname: true, lastname: true } } },

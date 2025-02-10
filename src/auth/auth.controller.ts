@@ -70,17 +70,17 @@ export class AuthController {
         'AC-l-2',
       );
     }
-    // genere jwt
+    // génération du JWT
     const access_token = await this.authService.createJwt(
       { sub: user.id, email: user.email, role: user.role },
-      process.env.SECRET_KEY,
-      '5m',
+      process.env.JWT_SECRET,
+      process.env.JWT_EXPIRATION_TIME,
     );
-    // refresh
+    // génération du refresh token
     const refresh_token = await this.authService.createJwt(
       { sub: user.id, email: user.email, role: user.role },
-      process.env.SECRET_REFRESH_KEY,
-      '1h',
+      process.env.JWT_REFRESH_SECRET,
+      process.env.JWT_REFRESH_EXPIRATION_TIME,
     );
     //modifier la bdd, si refresh existe update, sinon create
     await this.authService.upsertToken(
@@ -115,14 +115,14 @@ export class AuthController {
     // generate jwt
     const access_token = await this.authService.createJwt(
       { sub: req.user.sub, email: req.user.email, role: req.user.role },
-      process.env.SECRET_KEY,
-      '5m',
+      process.env.JWT_SECRET,
+      process.env.JWT_EXPIRATION_TIME,
     );
     // refresh
     const refresh_token = await this.authService.createJwt(
       { sub: req.user.sub, email: req.user.email, role: req.user.role },
-      process.env.SECRET_REFRESH_KEY,
-      '1h',
+      process.env.JWT_REFRESH_SECRET,
+      process.env.JWT_REFRESH_EXPIRATION_TIME,
     );
     // update refresh-token
     await this.authService.upsertToken(
