@@ -12,7 +12,7 @@ import { AuthService } from './auth.service';
 import { CustomHttpException } from 'src/exceptions/customhttp.exception';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 import { UsersService } from 'src/users/users.service';
 import { TypeTokenEnum } from '@prisma/client';
 import { Public } from 'src/decorators/public.decorator';
@@ -39,7 +39,7 @@ export class AuthController {
       );
     }
     // hashage du mot de passe
-    registerDto.password = await bcrypt.hash(registerDto.password, 10);
+    registerDto.password = await argon2.hash(registerDto.password);
     // création du user
     const new_user = await this.usersService.create(registerDto);
     // envoi du mail de confirmation
@@ -63,7 +63,7 @@ export class AuthController {
       );
     }
     // comparaison du password
-    if (!(await bcrypt.compare(loginDto.password, user.password))) {
+    if (!(await argon2.verify(user.password, loginDto.password))) {
       throw new CustomHttpException(
         'Invalid credentials',
         HttpStatus.UNAUTHORIZED,
@@ -85,7 +85,7 @@ export class AuthController {
     //modifier la bdd, si refresh existe update, sinon create
     await this.authService.upsertToken(
       user.id,
-      await bcrypt.hash(refresh_token, 10),
+      await argon2.hash(refresh_token),
       TypeTokenEnum.REFRESH,
     );
     // return success
@@ -101,11 +101,11 @@ export class AuthController {
     // verifier le refreshToken => date expiration // malformed // existe // et bonne signature
 
     // verifier si refreshToken existe et est bien formé
-    const token = await this.authService.getByUnique(
+    const { token } = await this.authService.getByUnique(
       req.user.sub,
       TypeTokenEnum.REFRESH,
     );
-    if (!(await bcrypt.compare(req.refresh, token.token))) {
+    if (!(await argon2.verify(token, req.refresh))) {
       throw new CustomHttpException(
         'Wrong refreshToken',
         HttpStatus.UNAUTHORIZED,
@@ -127,7 +127,7 @@ export class AuthController {
     // update refresh-token
     await this.authService.upsertToken(
       req.user.sub,
-      await bcrypt.hash(refresh_token, 10),
+      await argon2.hash(refresh_token),
       TypeTokenEnum.REFRESH,
     );
     // return success
